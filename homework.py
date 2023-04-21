@@ -1,8 +1,9 @@
 from dotenv import load_dotenv
+import json
 import logging
 import os
 import requests
-from sys import exit
+import sys
 import telegram
 import time
 
@@ -27,38 +28,51 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    filename='main.log',
+    filemode='a',
+    format='%(asctime)s, %(levelname)s, %(message)s, %(name)s'
+)
 
 def check_tokens():
-    tokens = {
-        PRACTICUM_TOKEN: 'PRACTICUM_TOKEN',
-        TELEGRAM_TOKEN: 'TELEGRAM_TOKEN',
-        TELEGRAM_CHAT_ID: 'TELEGRAM_CHAT_ID',
-    }
-    exit_flag = False
-    for token, token_name in tokens:
-        if not token:
-            logging.critical(f'Не указано значение токена {token_name}.')
-            # send_message
-            exit_flag = True
-    if exit_flag:
-        logging.critical(f'Работа бота принудительно завершена.')
-        exit()
+    '''
+    sdsaf
+    '''
+    return PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID
             
 
 def send_message(bot, message):
-    bot.send_message(TELEGRAM_CHAT_ID, message)
+    '''
+    YA docstring
+    '''
+    try:
+        bot.send_message(TELEGRAM_CHAT_ID, message)
+    except Exception as error:
+        logging.error(f'Ошибка при отправке сообщения: {error}')
+    else:
+        logging.debug(f'Cообщение <<<{message}>>> отправлено.')
 
 
 def get_api_answer(timestamp):
+    '''
+    df
+    '''
     payload = {'from_date': timestamp}
     try:
-        status = requests.get(ENDPOINT, headers=HEADERS, params=payload)
-    except:
-        pass
-    return status.json()
+        response = requests.get(ENDPOINT, headers=HEADERS, params=payload)
+    except requests.exceptions.RequestException as error:
+        logging.error(f'Ошибка при запросе к основному API: {error}')
+        raise ConnectionError(f'Ошибка при запросе к основному API: {error}')
+    if response.status_code != 200:
+        raise ConnectionError('Сервер API не доступен.')
+    return response.json()
 
 
 def check_response(response):
+    '''
+    sadsaf
+    '''
     if not isinstance(response, dict):
         message = 'Ответ API представлен не в виде словаря.'
         logging.error(message)
@@ -85,19 +99,29 @@ def check_response(response):
 
 
 def parse_status(homework):
+    '''
+    dsasafd
+    '''
     homework_name = homework.get('homework_name')
-    verdict = homework.get('status')
+    if not homework_name:
+        raise ValueError('В ответе API отсутствует имя домашней работы.')
+    status = homework.get('status')
+    if not status:
+        raise ValueError('В ответе API отсутствует статус домашней работы.')
+    try:
+        verdict = HOMEWORK_VERDICTS[status]
+    except KeyError:
+        print('Заранее неизвестный статус домашней работы.')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
 def main():
     """Основная логика работы бота."""
-
-
+    if not check_tokens():
+        logging.critical('Необходимые токены не определены!')
+        sys.exit()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    timestamp = int(time.time())
-    send_message(bot, 'Начнём проверку.')
-
+    timestamp = int(time.time()) - RETRY_PERIOD
     while True:
         try:
             status = get_api_answer(timestamp)
@@ -105,13 +129,12 @@ def main():
             for homework in homeworks:
                 message = parse_status(homework)
                 send_message(bot, message)
-
-
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
-            
-        time.sleep(RETRY_PERIOD)
+        finally:
+            timestamp = current_date
+            time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
