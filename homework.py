@@ -61,7 +61,7 @@ def get_api_answer(timestamp):
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=payload)
     except requests.exceptions.RequestException as error:
-        raise error(f'Ошибка при запросе к основному API.')
+        raise error('Ошибка при запросе к основному API.')
     if response.status_code != HTTPStatus.OK:
         logger.error(
             f'Запрашиваемый сервер API недоступен по адресу: {response.url}\n'
@@ -71,7 +71,7 @@ def get_api_answer(timestamp):
         )
         raise requests.exceptions.HTTPError(
             'Запрашиваемый сервер API недоступен.'
-            )
+        )
     return response.json()
 
 
